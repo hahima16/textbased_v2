@@ -1,6 +1,13 @@
 import random
 
 
+class Items:
+    class Weapons:
+        class Piwo:
+            name = "Sharpened Can of Piwo"
+            damage = 50
+
+
 class Room:
     class Spawn:
         movement = ["NORTH"]
@@ -21,26 +28,51 @@ class Room:
             "You find yourself in a room. The only way out is the way you came in."
         ]
 
+    class hallway_ew:
+        movement = ["East", "West"]
+        dialogues = [
+            "You are in a hallway."
+        ]
 
-# Movement Values
+    class hallway_ns:
+        movement = ["North", "South"]
+        dialogues = [
+            "You are in a hallway."
+        ]
+
+
+class EnemyContainer:
+
+    class Overworked:
+        health = 95
+        damage = 15
+        attack_chance = 80
+        nickname = "Overworked Employee"
+        drops = [
+            "Employee ID"
+        ]
+
+
+# Values
 coordinates = [0, 0, 0]
 current_room = Room.Spawn  # Where the player currently is
+health_points = 100
+inventory = [
+    Items.Weapons.Piwo
+]
 
 # Map
-# (Room, Loot claimed, Enemy Killed)
+# (Room, Loot claimed, Enemy Killed, Enemy)
+# Enemy killed = True if your room does not have an enemy.
 game_map = {
     (0, 0, 0): (Room.Spawn(), True, True),
-    (0, 1, 0): (Room.Crossroad(), False, False),
-    (0, 2, 0): (Room.Room_e_south, False, False),
+    (0, 1, 0): (Room.Crossroad(), False, False, EnemyContainer.Overworked),
+    (0, 2, 0): (Room.Room_e_south, False, True),
     (1, 1, 0): (Room.Crossroad, False, False),
     (2, 1, 0): (Room.Crossroad, False, False),
     (2, 2, 0): (Room.Room_e_south, False, False)
 
 }
-
-# Character Values
-hit_points = 100
-action_points = 100
 
 
 # Functions
@@ -97,6 +129,10 @@ def move():
             coordinates[0] += -1
 
 
+def repacker(room, loot, enemytf, enemytype):  # Room, Loot, Enemytruefalse, Enemytype
+    return tuple(room, loot, enemytf, enemytype) # does oppposite of unpacker
+
+
 # Gets ACL function and makes it work
 # Since ACL returns 2 values (The list of available actions and the list itself) this function prints the list and then
 # compares the user input to what is in the list.
@@ -110,11 +146,36 @@ def choose_action():
         return user_choice.upper()
 
 
-while True:
-    unpacked = unpacker(coordinates)  # Turns tuple into a list so that its easier to work with.
+while health_points > 0:
+    unpacked = unpacker(coordinates)  # Turns tuple into a list so that it's easier to work with.
     current_room = unpacked[0]  # Gets coordinates -> turns it in to a room -> changes current_room
-    if choose_action() == "MOVE":
-        print(random.choice(current_room.dialogues))  # Prints a random dialogue from the room class.
+
+    if not unpacked[2]:
+        print("The room has an enemy with " + str(unpacked[3].health) + " HP.")
+        chance = random.randint(0, 100)
+        if unpacked[3].attack_chance > chance:
+            health_points -= unpacked[3].damage
+            print(unpacked[3].nickname + " Attacks you")
+            print("You take " + str(unpacked[3].damage) + " Damage.")
+            print("New health: " + str(health_points))
+        else:
+            print("The " + unpacked[3].nickname + " attacks you but misses!")
+
+    stored = choose_action()
+
+    attacks = 0
+    hp_stored = None
+
+    if stored == "MOVE":
+        # print(random.choice(current_room.dialogues))  # Prints a random dialogue from the room class.
         print(mcl())  # Prints movement choice list
         move()  # Moves player through inputs
         print(coordinates)  # Prints new coordinates for debugging or whatever
+    elif stored == "FIGHT":
+        enemy = unpacked[3]
+        weapon = max(inventory, key=lambda item: item.damage, default=None)  # i copy paste from chatgpt idk wtf this is
+        attacks += 1
+        hp_stored = unpacked[3].health - (weapon.damage * attacks)
+        print(hp_stored)
+        if hp_stored <= 0:
+            game_map[tuple(coordinates)] = repacker(unpacked[0], unpacked[1], True, unpacked[3])
